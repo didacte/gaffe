@@ -1,0 +1,57 @@
+name: Verify
+on: [push]
+
+jobs:
+  linters:
+    name: Linters
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup Ruby and install gems
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+          ruby-version: 2.7
+
+      - name: Run linters
+        run: |
+          bundle exec phare
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        gemfile:
+          - rails-6.0
+          - rails-6.1
+          - rails-edge
+        ruby-version:
+          - 2.6
+          - 2.7
+          - head
+        exclude:
+          # activesupport-7.0.0.alpha requires ruby version >= 2.7.0, which is incompatible
+          - gemfile: rails-edge
+            ruby-version: 2.6
+
+    continue-on-error: ${{ endsWith(matrix.gemfile, 'edge') || matrix.ruby-version == 'head' }}
+
+    env:
+      BUNDLE_GEMFILE: gemfiles/Gemfile.${{ matrix.gemfile }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup Ruby ${{ matrix.ruby-version }} and install ${{ matrix.gemfile }} gems
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+          ruby-version: ${{ matrix.ruby-version }}
+
+      - name: Run tests
+        run: bundle exec rspec
